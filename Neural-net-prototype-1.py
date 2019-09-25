@@ -7,8 +7,8 @@ x_train, y_train = make_classification(n_samples=100, n_features=2, n_informativ
 
 #-------------------------------------------------------------------------------
 
-hidden_layers = 3
-nodes = [4, 2, 1]
+hidden_layers = 4
+nodes = [5, 4, 2, 1]
 
 def initialize_weights(x, layers=None, nodes_per_layer=None):
     weights = []
@@ -21,15 +21,16 @@ def initialize_weights(x, layers=None, nodes_per_layer=None):
     return weights
 layer_weights = initialize_weights(x_train, layers=hidden_layers, nodes_per_layer=nodes)
 
-
 def sigmoid(z):
     return 1 / (1 + np.exp(-z))
+
 def sig_der(z):
     return sigmoid(z) * (1 - sigmoid(z))
 
 def backprop_output(output_a, previous_a, y):
     output_delta = (output_a - y.reshape(-1,1))
     dc_dw = np.dot(output_delta.T, previous_a).reshape(-1,1)
+    print(dc_dw.mean()) #####
     return dc_dw, output_delta
 
 def backprop_hidden(bp_a_delta, bp_w ,current_z, previous_a, y):
@@ -55,11 +56,46 @@ def feed_forward(weights, x, y):
 
 def run(starting_w, x, y, iterations=1):
     w = starting_w
-
     for i in range(iterations):
         a, z = feed_forward(w, x, y)
-        input = x
-        w1 = w[0]
+
+        delta = None
+        w_updates = []
+
+        for layer_n in reversed(range(len(w))):
+            input = x
+            current_w = [w_n for w_n in reversed(w)]
+            current_a = [a_n for a_n in reversed(a)]
+            current_z = [z_n for z_n in reversed(z)]
+
+
+
+            if layer_n == (len(w)-1):
+                output_bp = backprop_output(current_a[0], current_a[1], y)
+                w_updates.append(output_bp[0])                      #appends the weight updates
+                delta = output_bp[1]
+
+
+            elif layer_n != (len(w)-1) and layer_n != 0:
+                hidden_layer_bp = backprop_hidden(delta, current_w[-(layer_n + 2)] ,current_z[-(layer_n + 1)], current_a[-layer_n], y)
+                w_updates.append(hidden_layer_bp[0])
+                delta = hidden_layer_bp[1]
+
+            elif layer_n == 0:
+                initial_bp = backprop_hidden(delta, current_w[-(layer_n + 2)] ,current_z[-(layer_n + 1)], input, y)
+                w_updates.append(initial_bp[0])
+                delta = initial_bp[1]
+
+
+        update_arr = np.array(w_updates)[::-1]  #now correct order (original order)
+        w = np.array(w)
+        w -= update_arr
+    print(np.c_[z[-1].round(decimals=2), y])
+
+
+
+
+    """w1 = w[0]
         w2 = w[1]
         w3 = w[2]
 
@@ -76,22 +112,19 @@ def run(starting_w, x, y, iterations=1):
         print(w3_update.mean()) #####
         a3_delta = output_bp[1]
 
-
         hidden2_bp = backprop_hidden(a3_delta, w3 ,z2, a1, y)
         w2_update = hidden2_bp[0]
         a2_delta = hidden2_bp[1]
 
-
         hidden1_bp = backprop_hidden(a2_delta, w2, z1, input, y)
         w1_update = hidden1_bp[0]
         a1_delta = hidden1_bp[1]
-
 
         w3 -= 0.1 * w3_update
         w2 -= 0.1 * w2_update
         w1 -= 0.1 * w1_update
 
         w = [w1, w2, w3]
-    print(a3.round(decimals=2))
+    print(a3.round(decimals=2))"""
 
-run(layer_weights, x_train, y_train, iterations=1000)
+run(layer_weights, x_train, y_train, iterations=500)
