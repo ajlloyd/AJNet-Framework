@@ -68,13 +68,10 @@ def run(starting_w, x, y, iterations=1):
             current_a = [a_n for a_n in reversed(a)]
             current_z = [z_n for z_n in reversed(z)]
 
-
-
             if layer_n == (len(w)-1):
                 output_bp = backprop_output(current_a[0], current_a[1], y)
                 w_updates.append(output_bp[0])                      #appends the weight updates
                 delta = output_bp[1]
-
 
             elif layer_n != (len(w)-1) and layer_n != 0:
                 hidden_layer_bp = backprop_hidden(delta, current_w[-(layer_n + 2)] ,current_z[-(layer_n + 1)], current_a[-layer_n], y)
@@ -86,11 +83,10 @@ def run(starting_w, x, y, iterations=1):
                 w_updates.append(initial_bp[0])
                 delta = initial_bp[1]
 
-
         update_arr = np.array(w_updates)[::-1]  #now correct order (original order)
         w = np.array(w)
-        w -= update_arr
-    print(np.c_[z[-1].round(decimals=2), y])
+        w -= 0.01 * update_arr
+    print(np.c_[a[-1].round(decimals=2), y])
 
 
 
