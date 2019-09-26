@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.datasets import make_classification
 np.random.seed(42)
 
-x_train, y_train = make_classification(n_samples=100, n_features=2, n_informative=2, n_redundant=0, n_classes=2)
+x_train, y_train = make_classification(n_samples=100, n_features=3, n_informative=2, n_redundant=0, n_classes=2)
 
 #-------------------------------------------------------------------------------
 
@@ -12,14 +12,21 @@ nodes = [5, 4, 2, 1]
 
 def initialize_weights(x, layers=None, nodes_per_layer=None):
     weights = []
+    biases = []
     for layer, nodes in zip(range(layers), nodes_per_layer):
         if layer == 0:
             weights.append(np.random.normal(loc=0, scale=1, size=(x.shape[1], nodes)))
         else:
             prev_nodes = weights[layer-1].shape[1]
             weights.append(np.random.normal(loc=0, scale=1, size=(prev_nodes, nodes)))
-    return weights
-layer_weights = initialize_weights(x_train, layers=hidden_layers, nodes_per_layer=nodes)
+        biases.append(np.zeros((1,nodes)).ravel())
+    return weights, biases
+
+initialised_ws_and_bs = initialize_weights(x_train, layers=hidden_layers, nodes_per_layer=nodes)
+layer_weights = initialised_ws_and_bs[0]
+layer_biases = initialised_ws_and_bs[1]
+
+
 
 def sigmoid(z):
     return 1 / (1 + np.exp(-z))
@@ -42,25 +49,27 @@ def backprop_hidden(bp_a_delta, bp_w ,current_z, previous_a, y):
     return dc_dw, a_delta
 
 
-def feed_forward(weights, x, y):
+def feed_forward(weights, biases, x, y):
     a = x
     z_vals = [] # z(w.a) for each layer
     a_vals = [] # activations for each layer
-    for w in weights:
-        z = np.dot(a,w)
+    for w, b in zip(weights, biases):
+        z = np.dot(a,w) + b
         a = sigmoid(z)
         z_vals.append(z)
         a_vals.append(a)
     return a_vals, z_vals
 
 
-def run(starting_w, x, y, iterations=1):
+def run(starting_w, starting_b, x, y, iterations=1, learning_rate = 0.1):
     w = starting_w
+    b = starting_b
     for i in range(iterations):
-        a, z = feed_forward(w, x, y)
+        a, z = feed_forward(w, b, x, y)
 
         delta = None
         w_updates = []
+        b_updates = []
 
         for layer_n in reversed(range(len(w))):
             input = x
@@ -72,55 +81,31 @@ def run(starting_w, x, y, iterations=1):
                 output_bp = backprop_output(current_a[0], current_a[1], y)
                 w_updates.append(output_bp[0])                      #appends the weight updates
                 delta = output_bp[1]
+                b_updates.append(np.array(delta))
 
             elif layer_n != (len(w)-1) and layer_n != 0:
                 hidden_layer_bp = backprop_hidden(delta, current_w[-(layer_n + 2)] ,current_z[-(layer_n + 1)], current_a[-layer_n], y)
                 w_updates.append(hidden_layer_bp[0])
                 delta = hidden_layer_bp[1]
+                b_updates.append(np.array(delta))
 
             elif layer_n == 0:
                 initial_bp = backprop_hidden(delta, current_w[-(layer_n + 2)] ,current_z[-(layer_n + 1)], input, y)
                 w_updates.append(initial_bp[0])
                 delta = initial_bp[1]
+                b_updates.append(np.array(delta))
 
-        update_arr = np.array(w_updates)[::-1]  #now correct order (original order)
+        summed_b_updates = [sum(bs) for bs in b_updates]
+
+        w_update_arr = np.array(w_updates)[::-1]  #now correct order (original order)
+        b_update_arr = np.array(summed_b_updates)[::-1]
+
         w = np.array(w)
-        w -= 0.01 * update_arr
+        b = np.array(b)
+
+        w -= learning_rate * w_update_arr
+        b -= learning_rate * b_update_arr
+
     print(np.c_[a[-1].round(decimals=2), y])
 
-
-
-
-    """w1 = w[0]
-        w2 = w[1]
-        w3 = w[2]
-
-        z1 = z[0]
-        z2 = z[1]
-        z3 = z[2]
-
-        a1 = a[0]
-        a2 = a[1]
-        a3 = a[2]
-
-        output_bp = backprop_output(a3, a2, y)
-        w3_update = output_bp[0]
-        print(w3_update.mean()) #####
-        a3_delta = output_bp[1]
-
-        hidden2_bp = backprop_hidden(a3_delta, w3 ,z2, a1, y)
-        w2_update = hidden2_bp[0]
-        a2_delta = hidden2_bp[1]
-
-        hidden1_bp = backprop_hidden(a2_delta, w2, z1, input, y)
-        w1_update = hidden1_bp[0]
-        a1_delta = hidden1_bp[1]
-
-        w3 -= 0.1 * w3_update
-        w2 -= 0.1 * w2_update
-        w1 -= 0.1 * w1_update
-
-        w = [w1, w2, w3]
-    print(a3.round(decimals=2))"""
-
-run(layer_weights, x_train, y_train, iterations=500)
+run(layer_weights, layer_biases, x_train, y_train, iterations=1000)
