@@ -2,7 +2,7 @@ import numpy as np
 from sklearn.datasets import make_classification
 np.random.seed(42)
 
-x_train, y_train = make_classification(n_samples=1000, n_features=5, n_informative=2, n_redundant=0, n_classes=2)
+x_train, y_train = make_classification(n_samples=100, n_features=5, n_informative=2, n_redundant=0, n_classes=2)
 
 #-------------------------------------------------------------------------------
 
@@ -15,8 +15,17 @@ class Layers():
 class Activations:
     def sigmoid(self, z):
         return 1 / (1 + np.exp(-z))
-    def sig_der(self, z):
+    def d_sigmoid(self, z, da=None):
         return self.sigmoid(z) * (1 - self.sigmoid(z))
+    def softmax(self, s):
+
+        #e_x = np.exp(x - np.max(x))
+        #return e_x / e_x.sum(axis=0)
+
+        exps = np.exp(s - np.max(s, axis=1, keepdims=True))
+        return exps/np.sum(exps, axis=1, keepdims=True)
+
+
 
 
 
@@ -41,16 +50,16 @@ class Frame(Activations):
             biases.append(np.zeros((1,nodes)).ravel())
         return weights, biases
 
-    def backprop_hidden(self, bp_a_delta, bp_w ,current_z, previous_a, y):                # Hidden layer Backprop derivatives:
-        dc_da = np.dot(bp_a_delta, bp_w.T)                                          # Eq.1
-        da_dz = super().sig_der(current_z)                                          # Eq.2
-        dz_dw = previous_a                                                          # Eq.3
+    def backprop_hidden(self, bp_a_delta, bp_w ,current_z, previous_a, y):          # Hidden layer Backprop derivatives:
+        dc_da = np.dot(bp_a_delta, bp_w.T)                                          # Eq.1 (da)
+        da_dz = super().d_sigmoid(current_z)  #####                                 # Eq.2 (dz)
+        dz_dw = previous_a                                                          # Eq.3 (dw)
         a_delta = (dc_da * da_dz)                                                   # Eq.1 * Eq.2
         dc_dw = np.dot(dz_dw.T, a_delta)                                            # Eq.2 dot a_delta
         return dc_dw, a_delta
 
-    def backprop_output(self, output_a, previous_a, y):                                   # Output layer derivates (different)
-        output_delta = (output_a - y.reshape(-1,1))                                 # o_delta == error
+    def backprop_output(self, output_a, previous_a, y):                             # Output layer derivates (different)
+        output_delta = (output_a - y.reshape(-1,1))                                # o_delta == error
         dc_dw = np.dot(output_delta.T, previous_a).reshape(-1,1)
         print(dc_dw.mean())                                                         ##### gradient (REMOVE) #####
         return dc_dw, output_delta
@@ -61,7 +70,7 @@ class Frame(Activations):
         a_vals = []                                                                 # activations for each layer [A = activation(Z)]
         for w, b in zip(weights, biases):
             z = np.dot(a,w) + b
-            a = super().sigmoid(z)
+            a = super().sigmoid(z) #####
             z_vals.append(z)
             a_vals.append(a)
         return a_vals, z_vals
@@ -70,7 +79,8 @@ class Frame(Activations):
         w = self.initialise_w_and_b(x, y)[0]
         b = self.initialise_w_and_b(x, y)[1]
         for i in range(iterations):
-            a, z = self.feed_forward(w, b, x, y)                                         # feed_forward pass function
+            a, z = self.feed_forward(w, b, x, y)                                    # feed_forward pass function
+
             delta = None                                                            # delta val which is updated for each layer
             w_updates = []                                                          # w and b updates
             b_updates = []
@@ -105,9 +115,10 @@ class Frame(Activations):
             w -= learning_rate * w_update_arr                                       # these two lines update the weights and biases for each iteration
             b -= learning_rate * b_update_arr
 
-        #print(np.c_[a[-1].round(decimals=2), y])
+        print(np.c_[a[-1].round(decimals=2), y])
         final_a = a[-1]
         return final_a
+
 
 #-------------------------------------------------------------------------------
 
@@ -118,6 +129,4 @@ model.add(Layers.Dense(nodes=4))
 model.add(Layers.Dense(nodes=2))
 model.add(Layers.Dense(nodes=1))
 
-#model.initialise_w_and_b(x_train, y_train)
-
-model.run(x_train, y_train, iterations=1000, learning_rate=0.01)
+model.run(x_train, y_train, iterations=1000, learning_rate=0.1)
